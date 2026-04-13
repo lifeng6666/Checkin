@@ -17,8 +17,13 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException
 
-from Utils import pwdEncrypt
-
+# 导入 SM2 加密依赖
+try:
+    from Utils import pwdEncrypt
+    print("✅ 成功加载 SM2 加密依赖")
+except ImportError:
+    print("❌ 错误: 未找到 Utils.py，请确保同目录下存在该文件")
+    sys.exit(1)
 
 # 尝试导入 serverchan3
 try:
@@ -1305,7 +1310,7 @@ def main():
     all_results = []
 
     for i, (username, password) in enumerate(zip(usernames, passwords), 1):
-        log(f"\n{'='*50}", show_time=False)
+        log(f"{'='*50}", show_time=False)
         log(f"开始处理账号 {i}/{total}", show_time=False)
         log(f"{'='*50}", show_time=False)
 

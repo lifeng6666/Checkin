@@ -144,7 +144,7 @@ def get_valid_proxy(account_index):
     # proxy_api_url = "http://api.dmdaili.com/dmgetip.asp?apikey=7db2f497&pwd=2051b6d39963f332116779a42367a8ef&getnum=1&httptype=1&geshi=2&fenge=1&fengefu=&operate=all"
     proxy_api_url = "http://api.dmdaili.com/dmgetip.asp?apikey=9a75bb40&pwd=b531ce911e0edacae218ea8ee6a1bff3&getnum=1&httptype=1&geshi=2&fenge=1&fengefu=&operate=all"
     
-    max_attempts = 100
+    max_attempts = 10
     attempt = 0
     
     while attempt < max_attempts:
@@ -195,7 +195,7 @@ def get_valid_proxy(account_index):
             attempt += 1
             time.sleep(2)
     
-    log(f"账号 {account_index} - ❌ 连续100次获取或验证代理失败，放弃使用代理")
+    log(f"账号 {account_index} - ❌ 连续10次获取或验证代理失败，放弃使用代理")
     return None
 
 class JLCClient:
@@ -554,7 +554,7 @@ def sign_in_account(username, password, account_index, total_accounts, retry_cou
         'initial_jindou': 0,
         'final_jindou': 0,
         'jindou_reward': 0,
-        'has_jindou_reward': False,
+        'has_jindou_reward': False,  # 金豆是否有额外奖励
         'token_extracted': False,
         'secretkey_extracted': False,
         'retry_count': retry_count,
@@ -587,18 +587,6 @@ def sign_in_account(username, password, account_index, total_accounts, retry_cou
     driver = None
     
     backup_passwords = [
-        "jlc476743",
-        "Ss123123"
-        # "Aa123123",
-        # "Zz123123",
-        # "Qq123123",
-        # "Ss123123",
-        # "Xx123123",
-        # "Yuanxd20031024",
-        # "jjl1775774A",
-        # "qeowowe5472",
-        # "Wyf349817236",
-        # "Bb123123"
     ]
 
     try:
@@ -629,10 +617,10 @@ def sign_in_account(username, password, account_index, total_accounts, retry_cou
 
         # 尝试密码（原密码 + 备用密码）
         while True:
-            # 在这里加入 18 次重试循环，以处理网络不稳定导致的 authCode 获取失败
+            # 在这里加入 10 次重试循环，以处理网络不稳定导致的 authCode 获取失败
             # 如果是 10208 密码错误，会立即中断重试并切换密码
             is_pwd_error = False
-            max_auth_retries = 18
+            max_auth_retries = 10
             
             for auth_attempt in range(max_auth_retries):
                 # 调用get_ali_auth_code，支持超时

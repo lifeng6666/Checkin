@@ -219,7 +219,7 @@ class AliV3:
         
         for browser_attempt in range(1, max_browser_retries + 1):
             try:
-                print(f"\n🌐 浏览器实例 {browser_attempt}/{max_browser_retries}")
+                print(f"🌐 浏览器实例 {browser_attempt}/{max_browser_retries}")
                 
                 self._safe_quit_browser(page)
                 time.sleep(1)
@@ -273,7 +273,7 @@ class AliV3:
                 
                 max_retries = 10
                 for attempt in range(1, max_retries + 1):
-                    print(f"\n🔄 第 {attempt}/{max_retries} 次尝试获取验证码...")
+                    print(f"🔄 第 {attempt}/{max_retries} 次尝试获取验证码...")
                     self.intercepted_data = None
                     self.verifyParam = None
                     self.deviceToken = None
@@ -447,7 +447,7 @@ class AliV3:
                 # 尝试获取 ticket
                 if resp_json.get('success') and resp_json.get('data', {}).get('captchaTicket'):
                     self.captchaTicket = resp_json['data']['captchaTicket']
-                    print("\nSUCCESS: Obtained CaptchaTicket:")
+                    print("SUCCESS: Obtained CaptchaTicket:")
                     print(self.captchaTicket)
             except Exception as e:
                 print("Failed to get captchaTicket from response:", e)

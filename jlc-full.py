@@ -14,7 +14,6 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
-from serverchan_sdk import sc_send
 from AliV3 import AliV3
 
 # 全局变量用于收集总结日志
@@ -197,7 +196,8 @@ def check_proxy(proxies):
 def get_valid_proxy(account_index):
     # proxy_api_url = "http://api.dmdaili.com/dmgetip.asp?apikey=7db2f497&pwd=2051b6d39963f332116779a42367a8ef&getnum=1&httptype=1&geshi=2&fenge=1&fengefu=&operate=all"
     proxy_api_url = "http://api.dmdaili.com/dmgetip.asp?apikey=9a75bb40&pwd=b531ce911e0edacae218ea8ee6a1bff3&getnum=1&httptype=1&geshi=2&fenge=1&fengefu=&operate=all"
-    max_attempts = 3
+    
+    max_attempts = 10
     attempt = 0
     
     while attempt < max_attempts:
@@ -248,7 +248,7 @@ def get_valid_proxy(account_index):
             attempt += 1
             time.sleep(2)
     
-    log(f"账号 {account_index} - ❌ 连续3次获取或验证代理失败，放弃使用代理")
+    log(f"账号 {account_index} - ❌ 连续10次获取或验证代理失败，放弃使用代理")
     return None
 
 class JLCClient:
@@ -306,6 +306,7 @@ class JLCClient:
         else:
             error_msg = data.get('message', '未知错误') if data else '请求失败'
             log(f"账号 {self.account_index} - ❌ 获取用户信息失败: {error_msg}")
+            self.sign_status = f"获取用户信息失败:{error_msg}"
             return False
     
     def get_points(self):
@@ -358,7 +359,7 @@ class JLCClient:
         else:
             error_msg = data.get('message', '未知错误') if data else '请求失败'
             log(f"账号 {self.account_index} - ❌ 检查签到状态失败: {error_msg}")
-            self.sign_status = "检查失败"
+            self.sign_status = f"检查状态失败:{error_msg}"
             return None
     
     def sign_in(self):
@@ -381,18 +382,19 @@ class JLCClient:
                 self.has_reward = True
                 
                 # 领取奖励
-                if self.receive_voucher():
+                voucher_success, voucher_msg = self.receive_voucher()
+                if voucher_success:
                     # 领取奖励成功后，视为签到完成
                     log(f"账号 {self.account_index} - ✅ 奖励领取成功，签到完成")
                     self.sign_status = "领取奖励成功"
                     return True
                 else:
-                    self.sign_status = "领取奖励失败"
+                    self.sign_status = f"领取奖励失败:{voucher_msg}"
                     return False
         else:
             error_msg = data.get('message', '未知错误') if data else '请求失败'
             log(f"账号 {self.account_index} - ❌ 签到失败: {error_msg}")
-            self.sign_status = "签到失败"
+            self.sign_status = f"签到失败:{error_msg}"
             return False
     
     def receive_voucher(self):
@@ -403,11 +405,11 @@ class JLCClient:
         
         if data and data.get('success'):
             log(f"账号 {self.account_index} - ✅ 领取成功")
-            return True
+            return True, "成功"
         else:
             error_msg = data.get('message', '未知错误') if data else '请求失败'
             log(f"账号 {self.account_index} - ❌ 领取奖励失败: {error_msg}")
-            return False
+            return False, error_msg
     
     def calculate_jindou_difference(self):
         """计算金豆差值"""
@@ -438,6 +440,9 @@ class JLCClient:
             self.initial_jindou = 0
         log(f"账号 {self.account_index} - 签到前金豆💰: {self.initial_jindou}")
         
+        # 将 final_jindou 先设为 initial_jindou，防止中途失败时 final_jindou 为 0
+        self.final_jindou = self.initial_jindou
+        
         time.sleep(random.randint(1, 2))
         
         # 3. 检查签到状态
@@ -456,9 +461,10 @@ class JLCClient:
         time.sleep(random.randint(1, 2))
         
         # 5. 获取签到后金豆数量
-        self.final_jindou = self.get_points()
-        if self.final_jindou is None:
-            self.final_jindou = 0
+        final = self.get_points()
+        if final is not None and final > 0:
+            self.final_jindou = final
+        # 如果获取失败，final_jindou 保持为 initial_jindou，不会变成 0
         log(f"账号 {self.account_index} - 签到后金豆💰: {self.final_jindou}")
         
         # 6. 计算金豆差值
@@ -754,18 +760,6 @@ def sign_in_account(username, password, account_index, total_accounts, retry_cou
     driver = None
     
     backup_passwords = [
-        "jlc476743",
-        "Ss123123"
-        # "Aa123123",
-        # "Zz123123",
-        # "Qq123123",
-        # "Ss123123",
-        # "Xx123123",
-        # "Yuanxd20031024",
-        # "jjl1775774A",
-        # "qeowowe5472",
-        # "Wyf349817236",
-        # "Bb123123"
     ]
 
     try:
@@ -780,7 +774,7 @@ def sign_in_account(username, password, account_index, total_accounts, retry_cou
             # 返回当前结果，外层逻辑会根据重试机制处理
             return result
 
-        # 1. 登录流程
+        # 1. 获取 authCode（用于 JLC 登录）
         log(f"账号 {account_index} - 正在调用 登录(AliV3) 依赖进行登录...")
         
         # 确保 AliV3 已加载
@@ -796,10 +790,10 @@ def sign_in_account(username, password, account_index, total_accounts, retry_cou
 
         # 尝试密码（原密码 + 备用密码）
         while True:
-            # 在这里加入 18 次重试循环，以处理网络不稳定导致的 authCode 获取失败
+            # 在这里加入 10 次重试循环，以处理网络不稳定导致的 authCode 获取失败
             # 如果是 10208 密码错误，会立即中断重试并切换密码
             is_pwd_error = False
-            max_auth_retries = 18
+            max_auth_retries = 10
             
             for auth_attempt in range(max_auth_retries):
                 # 调用get_ali_auth_code，支持超时
@@ -1299,153 +1293,6 @@ def process_single_account(username, password, account_index, total_accounts):
     
     return merged_result
 
-# 推送函数
-def push_summary():
-    if not summary_logs:
-        return
-    
-    title = "嘉立创签到总结"
-    text = "\n".join(summary_logs)
-    full_text = f"{title}\n{text}"  # 有些平台不需要单独标题
-    
-    # Telegram
-    telegram_bot_token = os.getenv('TELEGRAM_BOT_TOKEN')
-    telegram_chat_id = os.getenv('TELEGRAM_CHAT_ID')
-    if telegram_bot_token and telegram_chat_id:
-        try:
-            url = f"https://api.telegram.org/bot{telegram_bot_token}/sendMessage"
-            params = {'chat_id': telegram_chat_id, 'text': full_text}
-            response = requests.get(url, params=params)
-            if response.status_code == 200:
-                log("Telegram-日志已推送")
-            else:
-                log(f"Telegram-推送失败: {response.text}")
-        except Exception as e:
-            log(f"Telegram-推送异常: {e}")
-
-    # 企业微信 (WeChat Work)
-    wechat_webhook_key = os.getenv('WECHAT_WEBHOOK_KEY')
-    if wechat_webhook_key:
-        try:
-            if wechat_webhook_key.startswith('https://'):
-                url = wechat_webhook_key
-            else:
-                url = f"https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key={wechat_webhook_key}"
-            body = {"msgtype": "text", "text": {"content": full_text}}
-            response = requests.post(url, json=body)
-            # 检查状态码
-            if response.status_code != 200:
-                log(f"企业微信-推送失败 (HTTP {response.status_code}): {response.text}")
-            else:
-                # 解析 JSON
-                try:
-                    resp_json = response.json()
-                    errcode = resp_json.get('errcode')
-                    if errcode == 0:
-                        log("企业微信-日志已推送")
-                    else:
-                        errmsg = resp_json.get('errmsg', '未知错误')
-                        log(f"企业微信-推送失败 (errcode={errcode}, errmsg={errmsg})")
-                except Exception as e:
-                    log(f"企业微信-推送响应解析失败: {e}, 原始响应: {response.text}")
-        except Exception as e:
-            log(f"企业微信-推送异常: {e}")
-
-    # 钉钉 (DingTalk)
-    dingtalk_webhook = os.getenv('DINGTALK_WEBHOOK')
-    if dingtalk_webhook:
-        try:
-            if dingtalk_webhook.startswith('https://'):
-                url = dingtalk_webhook
-            else:
-                url = f"https://oapi.dingtalk.com/robot/send?access_token={dingtalk_webhook}"
-            body = {"msgtype": "text", "text": {"content": full_text}}
-            response = requests.post(url, json=body)
-            if response.status_code != 200:
-                log(f"钉钉-推送失败 (HTTP {response.status_code}): {response.text}")
-            else:
-                try:
-                    resp_json = response.json()
-                    errcode = resp_json.get('errcode')
-                    if errcode == 0:
-                        log("钉钉-日志已推送")
-                    else:
-                        errmsg = resp_json.get('errmsg', '未知错误')
-                        log(f"钉钉-推送失败 (errcode={errcode}, errmsg={errmsg})")
-                except Exception as e:
-                    log(f"钉钉-推送响应解析失败: {e}, 原始响应: {response.text}")
-        except Exception as e:
-            log(f"钉钉-推送异常: {e}")
-
-    # PushPlus
-    pushplus_token = os.getenv('PUSHPLUS_TOKEN')
-    if pushplus_token:
-        try:
-            url = "http://www.pushplus.plus/send"
-            body = {"token": pushplus_token, "title": title, "content": text}
-            response = requests.post(url, json=body)
-            if response.status_code == 200:
-                log("PushPlus-日志已推送")
-            else:
-                log(f"PushPlus-推送失败: {response.text}")
-        except Exception as e:
-            log(f"PushPlus-推送异常: {e}")
-
-    # Server酱
-    serverchan_sckey = os.getenv('SERVERCHAN_SCKEY')
-    if serverchan_sckey:
-        try:
-            url = f"https://sctapi.ftqq.com/{serverchan_sckey}.send"
-            body = {"title": title, "desp": text}
-            response = requests.post(url, data=body)
-            if response.status_code == 200:
-                log("Server酱-日志已推送")
-            else:
-                log(f"Server酱-推送失败: {response.text}")
-        except Exception as e:
-            log(f"Server酱-推送异常: {e}")
-
-    # Server酱3
-    serverchan3_sckey = os.getenv('SERVERCHAN3_SCKEY') 
-    if serverchan3_sckey:
-        try:
-            textSC3 = "\n\n".join(summary_logs)
-            titleSC3 = title
-            options = {"tags": "嘉立创|签到"}  # 可选参数，根据需求添加
-            response = sc_send(serverchan3_sckey, titleSC3, textSC3, options)            
-            if response.get("code") == 0:  # 新版成功返回 code=0
-                log("Server酱3-日志已推送")
-            else:
-                log(f"Server酱3-推送失败: {response}")                
-        except Exception as e:
-            log(f"Server酱3-推送异常: {str(e)}")    
-
-    # 酷推 (CoolPush)
-    coolpush_skey = os.getenv('COOLPUSH_SKEY')
-    if coolpush_skey:
-        try:
-            url = f"https://push.xuthus.cc/send/{coolpush_skey}?c={full_text}"
-            response = requests.get(url)
-            if response.status_code == 200:
-                log("酷推-日志已推送")
-            else:
-                log(f"酷推-推送失败: {response.text}")
-        except Exception as e:
-            log(f"酷推-推送异常: {e}")
-
-    # 自定义API
-    custom_webhook = os.getenv('CUSTOM_WEBHOOK')
-    if custom_webhook:
-        try:
-            body = {"title": title, "content": text}
-            response = requests.post(custom_webhook, json=body)
-            if response.status_code == 200:
-                log("自定义API-日志已推送")
-            else:
-                log(f"自定义API-推送失败: {response.text}")
-        except Exception as e:
-            log(f"自定义API-推送异常: {e}")
-
 def calculate_year_end_prediction(current_beans):
     """计算年底金豆预测数量"""
     try:
@@ -1468,8 +1315,6 @@ def main():
     
     if len(sys.argv) < 3:
         print("用法: python jlc.py 账号1,账号2,账号3... 密码1,密码2,密码3... [失败退出标志] [账号组编号]")
-        print("示例: python jlc.py user1,user2,user3 pwd1,pwd2,pwd3")
-        print("示例: python jlc.py user1,user2,user3 pwd1,pwd2,pwd3 true")
         print("示例: python jlc.py user1,user2,user3 pwd1,pwd2,pwd3 true 4")
         print("失败退出标志: 不传或任意值-关闭, true-开启(任意账号签到失败时返回非零退出码)")
         print("账号组编号: 只能输入数字，输入其他值则忽略")
@@ -1479,15 +1324,10 @@ def main():
     passwords = [p.strip() for p in sys.argv[2].split(',') if p.strip()]
     
     # 解析失败退出标志，默认为关闭
-    enable_failure_exit = False
-    if len(sys.argv) >= 4:
-        enable_failure_exit = (sys.argv[3].lower() == 'true')
+    enable_failure_exit = (sys.argv[3].lower() == 'true') if len(sys.argv) >= 4 else False
     
     # 解析第4个参数（账号组编号），只接受纯数字，其他值忽略
-    account_group = None
-    if len(sys.argv) >= 5:
-        if sys.argv[4].isdigit():
-            account_group = sys.argv[4]
+    account_group = sys.argv[4] if len(sys.argv) >= 5 and sys.argv[4].isdigit() else None
     
     log(f"失败退出功能: {'开启' if enable_failure_exit else '关闭'}")
     
@@ -1639,11 +1479,6 @@ def main():
         log("  ⚠除了密码错误账号，其他账号全部签到成功!")
     
     log("=" * 70)
-
-    # 推送总结 - 只有在有失败时推送（包括密码错误）
-    all_failed_accounts = failed_accounts + password_error_accounts
-    if all_failed_accounts:
-        push_summary()
     
     # 生成 password-changed.txt
     changed_accounts = [result for result in all_results if result.get('backup_index', -1) >= 0 and not result.get('password_error', False) and result['actual_password'] is not None]

@@ -466,7 +466,7 @@ def wait_for_exam_completion_with_js(driver, timeout_seconds=180):
             
             # 定期日志
             if time.time() - last_log_time > 15:
-                log(f"ℹ 当前页面: {current_url.split('?')[0]}")
+                log(f"⏳ 当前页面: {current_url.split('?')[0]}")
                 last_log_time = time.time()
             
             # 1. 成功跳转至结果页
@@ -796,7 +796,7 @@ def main():
 
     # 第一轮运行
     for i, acc in enumerate(accounts_list):
-        log(f"\n{'='*40}\n正在处理账号 {acc['index']}\n{'='*40}", show_time=False)
+        log(f"{'='*40}\n正在处理账号 {acc['index']}\n{'='*40}", show_time=False)
         res = process_single_account(acc['username'], acc['password'], acc['index'], len(usernames))
         acc['result'] = res
         if i < len(accounts_list) - 1: 
@@ -806,7 +806,7 @@ def main():
     failed_accounts = [acc for acc in accounts_list if not acc['result']['success']]
     
     if failed_accounts:
-        log("\n" + "="*40, show_time=False)
+        log("="*40, show_time=False)
         log(f"🔄 检测到 {len(failed_accounts)} 个账号失败，开始最终重试流程", show_time=False)
         log("="*40, show_time=False)
         
@@ -817,7 +817,7 @@ def main():
             original_result = acc['result']
             original_reason = original_result.get('failure_reason')
             
-            log(f"\n🔄 [账号 {idx}] 第一次最终重试 (原失败原因: {original_reason})", show_time=False)
+            log(f"🔄 [账号 {idx}] 第一次最终重试 (原失败原因: {original_reason})", show_time=False)
             
             # 第一次重试
             retry_res_1 = process_single_account(u, p, idx, len(usernames))
