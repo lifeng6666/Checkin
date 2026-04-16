@@ -62,7 +62,7 @@ def get_valid_proxy(account_proxy_fails):
     if account_proxy_fails >= 100:
         return None, account_proxy_fails
 
-    api_url = "http://api.dmdaili.com/dmgetip.asp?apikey=b8ea786f&pwd=8c2eb32b847f8f930f2e0cf6a08c45de&getnum=1&httptype=1&geshi=2&fenge=1&fengefu=&operate=all"
+    api_url = "http://api.dmdaili.com/dmgetip.asp?apikey=7db2f497&pwd=2051b6d39963f332116779a42367a8ef&getnum=1&httptype=1&geshi=2&fenge=1&fengefu=&operate=all"
 
     while True:
         if account_proxy_fails >= 100:
@@ -80,10 +80,12 @@ def get_valid_proxy(account_proxy_fails):
 
             if data.get("code") == 605:
                 log(f"ℹ 代理API返回: {data.get('msg')}，程序等待15秒后继续获取...")
+                account_proxy_fails += 1
                 time.sleep(15)
                 continue
             elif data.get("code") == 1 and "Too Many Requests" in data.get("msg", ""):
                 log("ℹ 代理API返回Too Many Requests，等待5秒后继续获取...")
+                account_proxy_fails += 1
                 time.sleep(5)
                 continue
             elif data.get("code") == 0 and data.get("data"):
@@ -101,9 +103,11 @@ def get_valid_proxy(account_proxy_fails):
                         return proxy_str, account_proxy_fails
                     else:
                         log(f"⚠ 代理测试失败 (HTTP {test_resp.status_code})，重新获取IP...")
+                        account_proxy_fails += 1
                         continue 
                 except Exception:
                     log(f"⚠ 代理测试请求超时或连接失败，重新获取IP...")
+                    account_proxy_fails += 1
                     continue 
             else:
                 log(f"⚠ 获取代理失败，API返回内容: {data}")
@@ -154,10 +158,11 @@ def create_chrome_driver(user_data_dir=None):
 
 
 # ======================== 登录相关========================
-def call_aliv3min_with_timeout(timeout_seconds=180, max_retries=10):
+def call_aliv3min_with_timeout(timeout_seconds=180, max_retries=18):
     """调用 AliV3min.py 获取 captchaTicket"""
     for attempt in range(max_retries):
         log(f"📞 正在调用登录脚本获取 captchaTicket (尝试 {attempt + 1}/{max_retries})...")
+        process = None
         try:
             if not os.path.exists("AliV3min.py"):
                 log("❌ 错误: 找不到登录依赖 AliV3min.py")
@@ -807,18 +812,6 @@ def process_single_account(username, password, account_index, total_accounts, st
     """处理单个账号的完整流程，包含密码重试及断点记忆"""
     global CONSECUTIVE_PROXY_ACCOUNT_FAILS, GLOBAL_PROXY_DISABLE
     backup_passwords = [
-        "jlc476743",
-        "Ss123123"
-        # "Aa123123",
-        # "Zz123123",
-        # "Qq123123",
-        # "Ss123123",
-        # "Xx123123",
-        # "Yuanxd20031024",
-        # "jjl1775774A",
-        # "qeowowe5472",
-        # "Wyf349817236",
-        # "Bb123123"
     ]
     
     all_passwords = [password]
