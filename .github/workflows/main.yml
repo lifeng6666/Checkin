@@ -29,6 +29,7 @@ jobs:
           import os
           import json
           import math
+          import random
 
           raw_data = os.environ.get('RAW_ACCOUNTS', '')
           accounts = []
