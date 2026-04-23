@@ -65,6 +65,8 @@ jobs:
                   "pwds": pwds_str
               })
 
+          random.shuffle(chunks)
+          
           matrix_json = json.dumps(chunks)
           with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
               f.write(f"matrix={matrix_json}\n")
