@@ -1455,8 +1455,8 @@ def main():
                 push_reasons.append(reason_str)
 
     # === 推送决策 ===
-    # 去重
-    push_reasons = list(dict.fromkeys(push_reasons))
+    # 去重 # 不需要去重
+    # push_reasons = list(dict.fromkeys(push_reasons))
     should_push = len(push_reasons) > 0
 
     if should_push:
